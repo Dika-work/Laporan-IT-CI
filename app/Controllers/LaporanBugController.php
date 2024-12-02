@@ -17,45 +17,43 @@ class LaporanBugController extends ResourceController
         $this->userModel = new UserModel();
     }
 
-    public function pluckUsername()
-    {
-        $usernameHash = $this->request->getVar('username_hash');
-
-        if (!$usernameHash) {
-            return $this->fail('username_hash is required', 400);
-        }
-
-        $username = $this->userModel->getUsernameByHash($usernameHash);
-
-        if (!$username) {
-            return $this->fail('User not found', 404);
-        }
-
-        return $this->respond(['username' => $username], 200);
-    }
-
     public function index()
     {
-        $allBug = $this->laporanBug->select('username_hash, divisi, lampiran, foto_user')->findAll();
+        try {
+            $allBug = $this->laporanBug
+                ->select('username_hash, divisi, apk, lampiran, foto_user, tgl_diproses, status_kerja, priority')
+                ->orderBy('status_kerja', 'ASC')
+                ->orderBy('priority', 'DESC')
+                ->findAll();
 
-        if (empty($allBug)) {
-            return $this->respond([], 200);
+            return $this->respond($allBug, 200);
+        } catch (\Exception $e) {
+            return $this->failServerError($e->getMessage());
         }
-
-        return $this->respond($allBug, 200);
     }
 
     public function createLaporan()
     {
         $username = $this->request->getPost('username');
         $lampiran = $this->request->getPost('lampiran');
-        $foto_user = $this->request->getPost('foto_user');
+        $apk = $this->request->getPost('apk');
+        $priority = $this->request->getPost('priority');
+        $tgl_diproses = $this->request->getPost('tgl_diproses');
+        $status_kerja = $this->request->getPost('status_kerja');
 
         if (!$username) {
             return $this->fail('Username is required', 400);
         }
 
-        $user = $this->userModel->select('username_hash, divisi')->where('username', $username)->first();
+        if (!in_array($priority, ['1', '2', '3', '4'])) {
+            return $this->fail('Invalid priority value', 400);
+        }
+
+        if (!in_array($status_kerja, ['0', '1', '2'])) {
+            return $this->fail('Invalid status_kerja value', 400);
+        }
+
+        $user = $this->userModel->select('username_hash, divisi, foto_user')->where('username', $username)->first();
 
         if (!$user) {
             return $this->fail('User not found', 404);
@@ -65,7 +63,11 @@ class LaporanBugController extends ResourceController
             'username_hash' => $user['username_hash'],
             'divisi' => $user['divisi'],
             'lampiran' => $lampiran,
-            'foto_user' => $foto_user,
+            'foto_user' => $user['foto_user'],
+            'apk' => $apk,
+            'priority' => $priority,
+            'tgl_diproses' => $tgl_diproses,
+            'status_kerja' => $status_kerja,
         ];
 
         try {
@@ -81,9 +83,9 @@ class LaporanBugController extends ResourceController
         }
     }
 
+
     public function updateLaporan($usernameHash = null)
     {
-        // Validasi jika username_hash tidak diberikan
         if (!$usernameHash) {
             return $this->respond([
                 'status' => 400,
@@ -91,7 +93,6 @@ class LaporanBugController extends ResourceController
             ], 400);
         }
 
-        // Cari laporan berdasarkan username_hash
         $laporan = $this->laporanBug->where('username_hash', $usernameHash)->first();
 
         if (!$laporan) {
@@ -104,12 +105,10 @@ class LaporanBugController extends ResourceController
         $json = $this->request->getJSON();
         $data = [];
 
-        // Perbarui lampiran jika ada
         if (!empty($json->lampiran)) {
             $data['lampiran'] = $json->lampiran;
         }
 
-        // Jika ada data yang diperbarui, lakukan update
         if (!empty($data)) {
             $this->laporanBug->where('username_hash', $usernameHash)->set($data)->update();
 
@@ -120,7 +119,6 @@ class LaporanBugController extends ResourceController
             ]);
         }
 
-        // Jika tidak ada data yang diberikan untuk diperbarui
         return $this->respond([
             'status' => 400,
             'message' => 'Tidak ada data yang diperbarui.'

@@ -14,7 +14,6 @@ class UserController extends ResourceController
         $this->userModel = new UserModel();
     }
 
-    // Fungsi untuk mendapatkan username dari username_hash
     public function getUsernameByHash()
     {
         $usernameHash = $this->request->getVar('username_hash');
@@ -28,7 +27,11 @@ class UserController extends ResourceController
 
         log_message('info', 'Received username_hash: ' . $usernameHash);
 
-        $user = $this->userModel->select('username')->where('username_hash', $usernameHash)->first();
+        // Query yang diperbaiki
+        $user = $this->userModel
+            ->select('username, divisi') // Pilih kolom username dan divisi
+            ->where('username_hash', $usernameHash) // Filter berdasarkan username_hash
+            ->first();
 
         if (!$user) {
             log_message('error', 'User not found for hash: ' . $usernameHash);
@@ -43,16 +46,18 @@ class UserController extends ResourceController
         return $this->respond([
             'status' => 200,
             'message' => 'Username found',
-            'data' => ['username' => $user['username']]
+            'data' => [
+                'username' => $user['username'],
+                'divisi' => $user['divisi']
+            ]
         ], 200);
     }
 
-    // Func Login
+
     public function login()
     {
         $json = $this->request->getJSON();
 
-        // Validasi input
         if (!isset($json->username) || !isset($json->password)) {
             return $this->respond([
                 'status' => 400,
@@ -60,7 +65,6 @@ class UserController extends ResourceController
             ], 400);
         }
 
-        // Cari user berdasarkan username
         $user = $this->userModel->where('username', $json->username)->first();
 
         if (!$user) {
@@ -70,7 +74,6 @@ class UserController extends ResourceController
             ], 404);
         }
 
-        // Verifikasi password
         if (!password_verify($json->password, $user['password'])) {
             return $this->respond([
                 'status' => 401,
@@ -78,12 +81,11 @@ class UserController extends ResourceController
             ], 401);
         }
 
-        // Jika login berhasil, hanya kirimkan username_hash
         return $this->respond([
             'status' => 200,
             'message' => 'Login berhasil.',
             'data' => [
-                'username_hash' => $user['username_hash'], // Hanya hash dikembalikan
+                'username_hash' => $user['username_hash'],
                 'type_user' => $user['type_user'],
                 'foto_user' => $user['foto_user']
             ]
