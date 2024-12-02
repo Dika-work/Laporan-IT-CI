@@ -24,6 +24,23 @@ class LaporanBug extends Migration
                 'type' => 'VARCHAR',
                 'constraint' => '64'
             ],
+            'apk' => [
+                'type' => 'VARCHAR',
+                'constraint' => '64'
+            ],
+            'status_kerja' => [
+                'type' => 'ENUM',
+                'constraint' => ['0', '1', '2'],
+                'default' => '0',
+            ],
+            'priority' => [
+                'type' => 'ENUM',
+                'constraint' => ['1', '2', '3', '4'],
+                'default' => '1',
+            ],
+            'tgl_diproses' => [
+                'type' => 'DATETIME',
+            ],
             'lampiran' => [
                 'type' => 'LONGTEXT'
             ],
@@ -34,11 +51,11 @@ class LaporanBug extends Migration
             ],
             'created_at'   => [
                 'type'       => 'DATETIME',
-                'null' => TRUE,
+                'null' => true,
             ],
             'updated_at'    => [
                 'type'       => 'DATETIME',
-                'null' => TRUE,
+                'null' => true,
             ],
         ]);
 
