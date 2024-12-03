@@ -20,3 +20,6 @@ $routes->get('getAllLaporan', 'LaporanBugController::index');
 $routes->post('createLaporan', 'LaporanBugController::createLaporan');
 $routes->put('updateLaporan/(:hash)', 'LaporanBugController::updateLaporan/$1');
 $routes->delete('deleteLaporan/(:hash)', 'LaporanBugController::deleteLaporan/$1');
+
+// Aplikasi category
+$routes->get('getCategoryApk', 'ApkCategoryController::index');

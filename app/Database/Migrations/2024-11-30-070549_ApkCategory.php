@@ -19,6 +19,10 @@ class ApkCategory extends Migration
                 'type' => 'VARCHAR',
                 'constraint' => 255,
             ],
+            'subtitle' => [
+                'type' => 'VARCHAR',
+                'constraint' => 255,
+            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'null' => true,
