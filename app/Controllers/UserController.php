@@ -143,6 +143,9 @@ class UserController extends ResourceController
         try {
             $this->userModel->insert($data);
 
+            // Hapus 'username' dari data sebelum mengembalikan respons
+            unset($data['username']);
+
             return $this->respondCreated([
                 'status' => 201,
                 'message' => 'User berhasil ditambahkan',
@@ -152,6 +155,7 @@ class UserController extends ResourceController
             return $this->failServerError('Terjadi kesalahan pada server.');
         }
     }
+
 
     // Update: Memperbarui user berdasarkan username_hash
     public function update($hashedUsername = null)

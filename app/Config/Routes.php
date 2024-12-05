@@ -17,9 +17,10 @@ $routes->get('getDeHashUsername', 'UserController::getUsernameByHash');
 
 // laporan bug
 $routes->get('getAllLaporan', 'LaporanBugController::index');
+$routes->get('get-laporan-admin', 'LaporanBugController::getAllLaporan');
 $routes->post('createLaporan', 'LaporanBugController::createLaporan');
 $routes->put('updateLaporan/(:hash)', 'LaporanBugController::updateLaporan/$1');
-$routes->delete('deleteLaporan/(:hash)', 'LaporanBugController::deleteLaporan/$1');
+$routes->delete('deleteLaporan', 'LaporanBugController::deleteLaporan');
 
 // Aplikasi category
 $routes->get('getCategoryApk', 'ApkCategoryController::index');
