@@ -18,7 +18,6 @@ class LaporanBug extends Migration
             'username_hash' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '64',
-                'unique'     => true,
             ],
             'divisi' => [
                 'type' => 'VARCHAR',
