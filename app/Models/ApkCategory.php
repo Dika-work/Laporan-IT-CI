@@ -8,6 +8,7 @@ class ApkCategory extends Model
 {
     protected $table = 'apk_category';
     protected $primaryKey = 'id';
+    protected $useTimestamps = true;
     protected $allowedFields = [
         'id_apk',
         'title',

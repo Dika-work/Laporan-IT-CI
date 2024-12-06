@@ -31,6 +31,7 @@ class ApkCategory extends Migration
                 'type' => 'DATETIME',
                 'null' => true,
             ],
+
         ]);
 
         $this->forge->addPrimaryKey('id_apk');

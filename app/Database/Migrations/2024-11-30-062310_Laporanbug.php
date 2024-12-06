@@ -48,12 +48,12 @@ class LaporanBug extends Migration
                 'constraint' => '255',
                 'null' => true,
             ],
-            'created_at'   => [
-                'type'       => 'DATETIME',
+            'created_at' => [
+                'type' => 'DATETIME',
                 'null' => true,
             ],
-            'updated_at'    => [
-                'type'       => 'DATETIME',
+            'updated_at' => [
+                'type' => 'DATETIME',
                 'null' => true,
             ],
         ]);

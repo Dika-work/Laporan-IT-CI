@@ -8,6 +8,7 @@ class LaporanBug extends Model
 {
     protected $table = 'laporanbugs';
     protected $primaryKey = 'id';
+    protected $useTimestamps = true;
     protected $allowedFields = [
         'username_hash',
         'divisi',

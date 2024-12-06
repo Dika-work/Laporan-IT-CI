@@ -126,7 +126,7 @@ class UserController extends ResourceController
         $fotoPath = null;
         if ($file && $file->isValid() && !$file->hasMoved()) {
             $newName = $file->getRandomName();
-            $file->move(WRITEPATH . 'uploads', $newName);
+            $file->move(FCPATH . 'uploads', $newName);
             $fotoPath = 'uploads/' . $newName;
         }
 

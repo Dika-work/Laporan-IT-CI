@@ -4,17 +4,20 @@ namespace App\Controllers;
 
 use App\Models\LaporanBug;
 use App\Models\UserModel;
+use App\Models\LaporanGambar;
 use CodeIgniter\RESTful\ResourceController;
 
 class LaporanBugController extends ResourceController
 {
     protected $laporanBug;
     protected $userModel;
+    protected $laporanGambar;
 
     public function __construct()
     {
         $this->laporanBug = new LaporanBug();
         $this->userModel = new UserModel();
+        $this->laporanGambar = new LaporanGambar();
     }
 
     public function index()
@@ -27,12 +30,17 @@ class LaporanBugController extends ResourceController
             }
 
             $filteredBug = $this->laporanBug
-                ->select('laporanbugs.id, users.username AS username, users.foto_user AS user_foto_user, users.divisi, laporanbugs.apk, laporanbugs.lampiran, laporanbugs.foto_user AS laporan_foto_user, laporanbugs.tgl_diproses, laporanbugs.status_kerja, laporanbugs.priority')
+                ->select('laporanbugs.id, users.username AS username, users.foto_user AS user_foto_user, users.divisi, laporanbugs.apk, laporanbugs.lampiran, laporanbugs.tgl_diproses, laporanbugs.status_kerja, laporanbugs.priority')
                 ->join('users', 'users.username_hash = laporanbugs.username_hash')
                 ->where('laporanbugs.username_hash', $usernameHash)
                 ->orderBy('laporanbugs.status_kerja', 'ASC')
                 ->orderBy('laporanbugs.priority', 'DESC')
                 ->findAll();
+
+            foreach ($filteredBug as &$bug) {
+                // Ambil semua gambar terkait dari tabel laporan_gambar
+                $bug['images'] = $this->laporanGambar->where('laporan_id', $bug['id'])->findAll();
+            }
 
             return $this->respond($filteredBug, 200);
         } catch (\Exception $e) {
@@ -40,27 +48,25 @@ class LaporanBugController extends ResourceController
         }
     }
 
-
     public function getAllLaporan()
     {
         try {
             $allBug = $this->laporanBug
                 ->select('
-                laporanbugs.id, 
+                laporanbugs.*, 
                 users.username AS username, 
                 users.divisi, 
-                laporanbugs.apk, 
-                laporanbugs.lampiran, 
-                laporanbugs.foto_user AS laporan_foto_user,
-                users.foto_user AS user_foto_user,
-                laporanbugs.tgl_diproses, 
-                laporanbugs.status_kerja, 
-                laporanbugs.priority
+                users.foto_user AS user_foto_user
             ')
                 ->join('users', 'users.username_hash = laporanbugs.username_hash')
                 ->orderBy('laporanbugs.status_kerja', 'ASC')
                 ->orderBy('laporanbugs.priority', 'DESC')
                 ->findAll();
+
+            foreach ($allBug as &$bug) {
+                // Ambil semua gambar untuk laporan ini
+                $bug['images'] = $this->laporanGambar->where('laporan_id', $bug['id'])->findAll();
+            }
 
             return $this->respond($allBug, 200);
         } catch (\Throwable $e) {
@@ -68,70 +74,78 @@ class LaporanBugController extends ResourceController
         }
     }
 
-
-
     public function createLaporan()
     {
+        // Log untuk debug
+        log_message('info', 'Request Data: ' . json_encode($this->request->getPost()));
+        log_message('info', 'Files Received: ' . json_encode($_FILES['foto_user'] ?? null));
+
+        // Validasi input
         $validationRules = [
-            'username' => 'required',
-            'priority' => 'required|in_list[1,2,3,4]',
+            'username'     => 'required',
+            'priority'     => 'required|in_list[1,2,3,4]',
             'status_kerja' => 'required|in_list[0,1,2]',
+            'lampiran'     => 'required',
         ];
 
         if (!$this->validate($validationRules)) {
+            log_message('error', 'Validation Errors: ' . json_encode($this->validator->getErrors()));
             return $this->fail($this->validator->getErrors(), 400);
         }
 
-        $username = $this->request->getPost('username');
-        $lampiran = $this->request->getPost('lampiran');
-        $apk = $this->request->getPost('apk');
-        $priority = $this->request->getPost('priority');
+        $username     = $this->request->getPost('username');
+        $lampiran     = $this->request->getPost('lampiran');
+        $apk          = $this->request->getPost('apk');
+        $priority     = $this->request->getPost('priority');
         $tgl_diproses = $this->request->getPost('tgl_diproses');
         $status_kerja = $this->request->getPost('status_kerja');
 
-        $fotoPath = null;
-        $fotoUser = $this->request->getFile('foto_user');
-        if ($fotoUser && $fotoUser->isValid() && !$fotoUser->hasMoved()) {
-            $newName = $fotoUser->getRandomName();
-            $fotoUser->move(WRITEPATH . 'uploads/laporan', $newName);
-            $fotoPath = 'uploads/laporan/' . $newName;
-        }
-
+        // Ambil data user
         $user = $this->userModel->select('username_hash, divisi')->where('username', $username)->first();
         if (!$user) {
             return $this->fail('User not found', 404);
         }
 
-        // Debug data yang akan dimasukkan
-        log_message('debug', 'Data yang akan dimasukkan: ' . json_encode([
+        $dataLaporan = [
             'username_hash' => $user['username_hash'],
-            'divisi' => $user['divisi'],
-            'lampiran' => $lampiran,
-            'foto_user' => $fotoPath,
-            'apk' => $apk,
-            'priority' => $priority,
-            'tgl_diproses' => $tgl_diproses,
-            'status_kerja' => $status_kerja,
-        ]));
-
-        $data = [
-            'username_hash' => $user['username_hash'],
-            'divisi' => $user['divisi'],
-            'lampiran' => $lampiran,
-            'foto_user' => $fotoPath,
-            'apk' => $apk,
-            'priority' => $priority,
-            'tgl_diproses' => $tgl_diproses,
-            'status_kerja' => $status_kerja,
+            'divisi'        => $user['divisi'],
+            'lampiran'      => $lampiran,
+            'apk'           => $apk,
+            'priority'      => $priority,
+            'tgl_diproses'  => $tgl_diproses,
+            'status_kerja'  => $status_kerja,
         ];
 
         try {
-            $this->laporanBug->insert($data);
+            // Simpan laporan
+            $laporanId = $this->laporanBug->insert($dataLaporan, true);
+            log_message('info', "Laporan ID {$laporanId} berhasil dibuat.");
+
+            // Simpan gambar
+            $gambarFiles = $this->request->getFileMultiple('foto_user');
+            if ($gambarFiles && is_array($gambarFiles)) {
+                foreach ($gambarFiles as $file) {
+                    if ($file->isValid() && !$file->hasMoved()) {
+                        $newName = $file->getRandomName();
+                        $file->move(FCPATH . 'uploads/laporan', $newName);
+
+                        // Simpan path gambar di table laporan_gambar
+                        $this->laporanGambar->insert([
+                            'laporan_id' => $laporanId,
+                            'path'       => 'uploads/laporan/' . $newName,
+                        ]);
+                        log_message('info', "Gambar disimpan: uploads/laporan/{$newName}");
+                    }
+                }
+            }
+
+            // Update kolom foto_user di tabel laporanbugs
+            $this->laporanBug->update($laporanId, ['foto_user' => $laporanId]);
+            log_message('info', "Kolom foto_user diperbarui dengan laporan ID: {$laporanId}");
 
             return $this->respondCreated([
-                'status' => 201,
+                'status'  => 201,
                 'message' => 'Berhasil menambahkan laporan',
-                'data' => $data,
             ]);
         } catch (\Throwable $th) {
             log_message('error', '[ERROR] ' . $th->getMessage());
@@ -140,116 +154,106 @@ class LaporanBugController extends ResourceController
     }
 
 
-
-    public function updateLaporan($usernameHash = null)
+    public function updateLaporan()
     {
-        if (!$usernameHash) {
-            return $this->respond([
-                'status' => 400,
-                'message' => 'username is required'
-            ], 400);
-        }
-
-        $laporan = $this->laporanBug->where('username_hash', $usernameHash)->first();
+        $hashId = $this->request->getVar('hash_id');
+        $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
 
         if (!$laporan) {
-            return $this->respond([
-                'status' => 404,
-                'message' => 'Laporan tidak ditemukan.'
-            ], 404);
+            return $this->failNotFound('Laporan tidak ditemukan.');
         }
 
         $json = $this->request->getJSON();
-        $file = $this->request->getFile('foto_user');
-        $data = [];
+        $files = $this->request->getFiles('foto_user');
 
-        // Update lampiran jika tersedia
-        if (!empty($json->lampiran)) {
-            $data['lampiran'] = $json->lampiran;
-        }
+        $data = [
+            'lampiran' => $json->lampiran ?? $laporan['lampiran'],
+            'apk'      => $json->apk ?? $laporan['apk'],
+            'priority' => $json->priority ?? $laporan['priority'],
+        ];
 
-        // Update apk jika tersedia
-        if (!empty($json->apk)) {
-            $data['apk'] = $json->apk;
-        }
+        try {
+            $this->laporanBug->update($laporan['id'], $data);
 
-        // Update priority jika tersedia
-        if (!empty($json->priority)) {
-            $data['priority'] = $json->priority;
-        }
+            // Tambahkan gambar baru
+            if ($files) {
+                foreach ($files as $file) {
+                    if ($file->isValid() && !$file->hasMoved()) {
+                        $newName = $file->getRandomName();
+                        $file->move(FCPATH . 'uploads/laporan', $newName);
 
-        // Update foto_user jika file diunggah
-        if ($file && $file->isValid() && !$file->hasMoved()) {
-            if (!empty($laporan['foto_user']) && file_exists(WRITEPATH . $laporan['foto_user'])) {
-                unlink(WRITEPATH . $laporan['foto_user']);
+                        $this->laporanGambar->insert([
+                            'laporan_id' => $laporan['id'],
+                            'path'       => 'uploads/laporan/' . $newName,
+                        ]);
+                    }
+                }
             }
 
-            $newName = $file->getRandomName();
-            $file->move(WRITEPATH . 'uploads/laporan', $newName);
-            $data['foto_user'] = 'uploads/laporan/' . $newName;
-        }
-
-        // Lakukan pembaruan jika ada data yang diubah
-        if (!empty($data)) {
-            $this->laporanBug->where('username_hash', $usernameHash)->set($data)->update();
-
             return $this->respond([
-                'status' => 200,
+                'status'  => 200,
                 'message' => 'Laporan berhasil diperbarui',
-                'data' => $data
             ]);
+        } catch (\Throwable $th) {
+            return $this->failServerError('Terjadi kesalahan pada server');
         }
-
-        return $this->respond([
-            'status' => 400,
-            'message' => 'Tidak ada data yang diperbarui.'
-        ], 400);
     }
 
     public function deleteLaporan()
     {
         try {
-            // Ambil hash ID dari request
             $hashId = $this->request->getVar('hash_id');
-            log_message('debug', 'Hash ID diterima dari Flutter: ' . $hashId);
+            $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
 
-            // Cari laporan berdasarkan hash ID
-            $laporan = $this->laporanBug
-                ->select('id, foto_user') // Tambahkan foto_user
-                ->where('SHA2(id, 256)', $hashId)
-                ->first();
-            log_message('debug', 'Hasil query laporan: ' . json_encode($laporan));
-
-            // Jika laporan tidak ditemukan
             if (!$laporan) {
-                log_message('debug', 'Laporan tidak ditemukan untuk hash ID: ' . $hashId);
                 return $this->failNotFound('Laporan tidak ditemukan.');
             }
 
-            // Hapus file foto_user jika ada
-            if (!empty($laporan['foto_user'])) {
-                $filePath = FCPATH . 'uploads/laporan/' . basename($laporan['foto_user']);
+            // Ambil semua gambar yang terkait dengan laporan
+            $images = $this->laporanGambar->where('laporan_id', $laporan['id'])->findAll();
+
+            // Hapus setiap gambar dari server dan database
+            foreach ($images as $image) {
+                $filePath = FCPATH . $image['path'];
                 if (file_exists($filePath)) {
-                    unlink($filePath); // Hapus file
-                    log_message('info', 'File foto_user berhasil dihapus: ' . $filePath);
-                } else {
-                    log_message('info', 'File foto_user tidak ditemukan: ' . $filePath);
+                    unlink($filePath); // Hapus file dari server
                 }
+                $this->laporanGambar->delete($image['id']); // Hapus entri dari database
             }
 
-            // Hapus laporan berdasarkan ID
-            $delete = $this->laporanBug->delete($laporan['id']);
-            log_message('debug', 'Hapus laporan status: ' . ($delete ? 'Berhasil' : 'Gagal'));
+            // Hapus laporan dari database
+            $this->laporanBug->delete($laporan['id']);
 
-            // Kembalikan respons sukses
-            return $this->respondDeleted([
-                'status' => 200,
-                'message' => 'Laporan berhasil dihapus',
-            ]);
-        } catch (\Exception $e) {
-            // Log jika terjadi error
-            log_message('error', 'Error saat menghapus laporan: ' . $e->getMessage());
+            return $this->respondDeleted(['message' => 'Laporan dan semua gambar terkait berhasil dihapus.']);
+        } catch (\Throwable $th) {
+            log_message('error', '[ERROR] ' . $th->getMessage());
             return $this->failServerError('Terjadi kesalahan pada server.');
         }
     }
+
+
+    // public function deleteImage($imageId)
+    // {
+    //     try {
+    //         $image = $this->laporanGambar->find($imageId);
+
+    //         if (!$image) {
+    //             return $this->failNotFound('Gambar tidak ditemukan.');
+    //         }
+
+    //         $filePath = FCPATH . $image['path'];
+
+    //         // Hapus file dari server
+    //         if (file_exists($filePath)) {
+    //             unlink($filePath);
+    //         }
+
+    //         // Hapus dari database
+    //         $this->laporanGambar->delete($imageId);
+
+    //         return $this->respondDeleted(['message' => 'Gambar berhasil dihapus.']);
+    //     } catch (\Throwable $th) {
+    //         return $this->failServerError('Terjadi kesalahan pada server.');
+    //     }
+    // }
 }
