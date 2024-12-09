@@ -29,3 +29,9 @@ $routes->delete('deleteLaporan', 'LaporanBugController::deleteLaporan');
 
 // Aplikasi category
 $routes->get('getCategoryApk', 'ApkCategoryController::index');
+
+// Laporan pekerjaan
+$routes->get('getLaporanPekerjaan', 'LaporanPekerjaanController::index');
+$routes->post('laporan-pekerjaan', 'LaporanPekerjaanController::createLaporanPekerjaan');
+$routes->put('update-pekerjaan', 'LaporanPekerjaanController::updatePekerjaan');
+$routes->delete('delete-pekerjaan', 'LaporanPekerjaanController::deletePekerjaan');

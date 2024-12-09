@@ -33,6 +33,7 @@ class LaporanBugController extends ResourceController
                 ->select('laporanbugs.id, users.username AS username, users.foto_user AS user_foto_user, users.divisi, laporanbugs.apk, laporanbugs.lampiran, laporanbugs.tgl_diproses, laporanbugs.status_kerja, laporanbugs.priority')
                 ->join('users', 'users.username_hash = laporanbugs.username_hash')
                 ->where('laporanbugs.username_hash', $usernameHash)
+                ->orderBy('laporanbugs.created_at', 'DESC')
                 ->orderBy('laporanbugs.status_kerja', 'ASC')
                 ->orderBy('laporanbugs.priority', 'DESC')
                 ->findAll();
@@ -59,6 +60,7 @@ class LaporanBugController extends ResourceController
                 users.foto_user AS user_foto_user
             ')
                 ->join('users', 'users.username_hash = laporanbugs.username_hash')
+                ->orderBy('laporanbugs.created_at', 'DESC')
                 ->orderBy('laporanbugs.status_kerja', 'ASC')
                 ->orderBy('laporanbugs.priority', 'DESC')
                 ->findAll();
