@@ -16,6 +16,7 @@ class LaporanBug extends Model
         'status_kerja',
         'priority',
         'tgl_diproses',
+        'tgl_acc',
         'lampiran',
         'foto_user',
         'created_at',

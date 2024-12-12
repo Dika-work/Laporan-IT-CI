@@ -26,6 +26,7 @@ $routes->get('get-laporan-admin', 'LaporanBugController::getAllLaporan');
 $routes->post('createLaporan', 'LaporanBugController::createLaporan');
 $routes->put('updateLaporan', 'LaporanBugController::updateLaporan');
 $routes->delete('deleteLaporan', 'LaporanBugController::deleteLaporan');
+$routes->put('status-kerja', 'LaporanBugController::changeStatusKerja');
 
 // Aplikasi category
 $routes->get('getCategoryApk', 'ApkCategoryController::index');

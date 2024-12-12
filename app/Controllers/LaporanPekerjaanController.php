@@ -130,14 +130,7 @@ class LaporanPekerjaanController extends ResourceController
     public function updatePekerjaan()
     {
         try {
-            // Ambil hash_id dari request
             $hashId = $this->request->getVar('hash_id');
-
-            if (!$hashId) {
-                return $this->fail('Hash ID harus disediakan', 400);
-            }
-
-            // Cari pekerjaan berdasarkan hash_id
             $pekerjaan = $this->laporanPekerjaan->where('SHA2(id, 256)', $hashId)->first();
 
             if (!$pekerjaan) {
@@ -147,37 +140,24 @@ class LaporanPekerjaanController extends ResourceController
             // Ambil data input JSON
             $json = $this->request->getJSON();
 
-            // Validasi data
-            $validationRules = [
-                'apk' => 'max_length[64]', // Validasi untuk kolom apk
-                'tgl' => 'valid_date[Y-m-d H:i:s]', // Validasi untuk tanggal
-            ];
-
-            if (!$this->validate((array)$json, $validationRules)) {
-                return $this->failValidationErrors($this->validator->getErrors());
-            }
-
-            // Siapkan data untuk update
             $data = [
                 'apk' => $json->apk ?? $pekerjaan['apk'],
                 'problem' => $json->problem ?? $pekerjaan['problem'],
                 'pekerjaan' => $json->pekerjaan ?? $pekerjaan['pekerjaan'],
                 'tgl' => $json->tgl ?? $pekerjaan['tgl'],
+                'status' => $json->status ?? $pekerjaan['status'],
             ];
 
-            // Update data di database
             $this->laporanPekerjaan->update($pekerjaan['id'], $data);
 
-            // Ambil data terbaru setelah update
             $updatedData = $this->laporanPekerjaan->find($pekerjaan['id']);
 
             return $this->respond([
                 'status' => 200,
                 'message' => 'Pekerjaan berhasil diperbarui',
-                'data' => $updatedData, // Kembalikan data yang diperbarui
+                'data' => $updatedData,
             ]);
         } catch (\Throwable $th) {
-            // Log error untuk debugging
             log_message('error', '[ERROR] ' . $th->getMessage());
             return $this->failServerError('Terjadi kesalahan pada server');
         }

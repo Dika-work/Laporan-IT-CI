@@ -76,6 +76,56 @@ class LaporanBugController extends ResourceController
         }
     }
 
+    public function changeStatusKerja()
+    {
+        try {
+            $hashId = $this->request->getVar('hash_id');
+            $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
+
+            if (!$laporan) {
+                return $this->failNotFound('Data laporan tidak ditemukan.');
+            }
+
+            $json = $this->request->getJSON();
+            $statusKerja = $json->status_kerja;
+            $tglAcc = $json->tgl_acc ?? null;
+
+            // Validasi status_kerja
+            if (!in_array($statusKerja, [0, 1, 2])) {
+                return $this->failValidationErrors('status_kerja harus diisi dan memiliki nilai 0, 1, atau 2.');
+            }
+
+            // Validasi tgl_acc
+            if (empty($tglAcc)) {
+                return $this->failValidationErrors('tgl_acc tidak boleh kosong.');
+            }
+
+            if (!\DateTime::createFromFormat('Y-m-d H:i:s', $tglAcc)) {
+                return $this->failValidationErrors('Format tgl_acc tidak valid. Gunakan format Y-m-d H:i:s.');
+            }
+
+            // Data untuk update
+            $updateData = [
+                'status_kerja' => $statusKerja,
+                'tgl_acc' => $tglAcc
+            ];
+
+            // Update data
+            $this->laporanBug->update($laporan['id'], $updateData);
+            log_message('debug', 'Update Data: ' . json_encode($updateData));
+
+            return $this->respond([
+                'status'  => 200,
+                'message' => 'Status kerja berhasil diperbarui.'
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Error: ' . $e->getMessage());
+            return $this->failServerError('Terjadi kesalahan pada server: ' . $e->getMessage());
+        }
+    }
+
+
+
     public function createLaporan()
     {
         // Log untuk debug
@@ -232,30 +282,4 @@ class LaporanBugController extends ResourceController
             return $this->failServerError('Terjadi kesalahan pada server.');
         }
     }
-
-
-    // public function deleteImage($imageId)
-    // {
-    //     try {
-    //         $image = $this->laporanGambar->find($imageId);
-
-    //         if (!$image) {
-    //             return $this->failNotFound('Gambar tidak ditemukan.');
-    //         }
-
-    //         $filePath = FCPATH . $image['path'];
-
-    //         // Hapus file dari server
-    //         if (file_exists($filePath)) {
-    //             unlink($filePath);
-    //         }
-
-    //         // Hapus dari database
-    //         $this->laporanGambar->delete($imageId);
-
-    //         return $this->respondDeleted(['message' => 'Gambar berhasil dihapus.']);
-    //     } catch (\Throwable $th) {
-    //         return $this->failServerError('Terjadi kesalahan pada server.');
-    //     }
-    // }
 }

@@ -40,6 +40,9 @@ class LaporanBug extends Migration
             'tgl_diproses' => [
                 'type' => 'DATETIME',
             ],
+            'tgl_acc' => [
+                'type' => 'DATETIME',
+            ],
             'lampiran' => [
                 'type' => 'LONGTEXT'
             ],
