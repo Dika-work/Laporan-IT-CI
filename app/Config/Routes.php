@@ -24,7 +24,7 @@ $routes->get('uploads/(:any)', function ($path) {
 $routes->get('getAllLaporan', 'LaporanBugController::index');
 $routes->get('get-laporan-admin', 'LaporanBugController::getAllLaporan');
 $routes->post('createLaporan', 'LaporanBugController::createLaporan');
-$routes->put('updateLaporan', 'LaporanBugController::updateLaporan');
+$routes->post('updateLaporan', 'LaporanBugController::updateLaporan');
 $routes->delete('deleteLaporan', 'LaporanBugController::deleteLaporan');
 $routes->put('status-kerja', 'LaporanBugController::changeStatusKerja');
 

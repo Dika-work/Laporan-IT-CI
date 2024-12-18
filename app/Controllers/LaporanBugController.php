@@ -202,37 +202,82 @@ class LaporanBugController extends ResourceController
         }
     }
 
-
-
     public function updateLaporan()
     {
-        // Menerima data JSON dari request
-        $input = $this->request->getJSON();
+        // Ambil data teks dari request
+        $hashId   = $this->request->getPost('hash_id');
+        $lampiran = $this->request->getPost('lampiran');
+        $apk      = $this->request->getPost('apk');
+        $priority = $this->request->getPost('priority');
 
-        // Log semua data yang diterima untuk pemeriksaan
-        log_message('info', 'Data yang diterima dari frontend: ' . json_encode($input));
+        // Ambil daftar gambar lama yang ingin dipertahankan
+        $existingImages = $this->request->getPost('existing_images') ?? [];
+        if (!is_array($existingImages)) {
+            $existingImages = [];
+        }
 
-        $hashId = $input->hash_id ?? null;
-        $lampiran = $input->lampiran ?? null;
-        $apk = $input->apk ?? null;
-        $priority = $input->priority ?? null;
-        $foto_user = $input->foto_user ?? null;
+        // **Normalisasi existing_images** untuk memastikan path relatif
+        $existingImages = array_map(function ($image) {
+            // Hilangkan protokol, domain, dan base URL
+            $normalized = parse_url($image, PHP_URL_PATH); // Ambil bagian path
+            return ltrim($normalized, '/'); // Hapus leading slash jika ada
+        }, $existingImages);
 
-        // Cek dan log nilai yang diterima
-        log_message('info', 'hash_id: ' . $hashId);
-        log_message('info', 'lampiran: ' . $lampiran);
-        log_message('info', 'apk: ' . $apk);
-        log_message('info', 'priority: ' . $priority);
-        log_message('info', 'foto_user: ' . $foto_user);
+        // Debugging: Log hasil existing_images yang sudah dinormalisasi
+        log_message('info', 'Normalized Existing Images: ' . json_encode($existingImages));
 
-        // Mencari laporan berdasarkan hash_id
+        // Cari laporan berdasarkan hash_id
         $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
-
         if (!$laporan) {
             return $this->failNotFound('Laporan tidak ditemukan.');
         }
 
-        // Data yang akan diupdate
+        // Ambil semua gambar lama dari database
+        $oldImages = $this->laporanGambar->where('laporan_id', $laporan['id'])->findAll();
+        $oldImagePaths = array_column($oldImages, 'path');
+
+        // Debugging: Log semua gambar lama
+        log_message('info', 'Old Image Paths: ' . json_encode($oldImagePaths));
+
+        // Hapus gambar lama yang tidak ada di existing_images
+        foreach ($oldImagePaths as $oldPath) {
+            if (!in_array($oldPath, $existingImages)) {
+                // Hapus file dari direktori jika file ada
+                if (file_exists(FCPATH . $oldPath)) {
+                    unlink(FCPATH . $oldPath);
+                    log_message('info', 'Deleted Image File: ' . $oldPath);
+                }
+                // Hapus record gambar dari database
+                $this->laporanGambar->where(['laporan_id' => $laporan['id'], 'path' => $oldPath])->delete();
+                log_message('info', 'Deleted Image Record: ' . $oldPath);
+            }
+        }
+
+        // Ambil file gambar baru (jika ada)
+        $uploadedFiles = $this->request->getFileMultiple('new_images');
+        $newImagePaths = [];
+
+        if ($uploadedFiles) {
+            foreach ($uploadedFiles as $file) {
+                if ($file->isValid() && !$file->hasMoved()) {
+                    // Simpan file baru ke direktori
+                    $newFileName = $file->getRandomName();
+                    $file->move(FCPATH . 'uploads/laporan/', $newFileName);
+                    $newImagePaths[] = 'uploads/laporan/' . $newFileName;
+                    log_message('info', 'New Image Uploaded: ' . $newFileName);
+                }
+            }
+        }
+
+        // Simpan informasi gambar baru ke database
+        foreach ($newImagePaths as $path) {
+            $this->laporanGambar->insert([
+                'laporan_id' => $laporan['id'],
+                'path'       => $path,
+            ]);
+        }
+
+        // Data yang akan diperbarui
         $data = [
             'lampiran' => $lampiran ?? $laporan['lampiran'],
             'apk'      => $apk ?? $laporan['apk'],
@@ -240,28 +285,12 @@ class LaporanBugController extends ResourceController
         ];
 
         try {
-            // Update laporan tanpa menyentuh foto_user jika tidak ada perubahan
+            // Update data laporan
             $this->laporanBug->update($laporan['id'], $data);
-
-            // Jika ada foto_user (base64 image), proses foto
-            if ($foto_user) {
-                // Log gambar base64
-                log_message('info', 'Foto user (base64): ' . $foto_user);
-
-                // Decode gambar dari base64
-                $imageData = base64_decode($foto_user);
-                $newName = uniqid() . '.jpg';
-
-                // Simpan gambar baru
-                file_put_contents(FCPATH . 'uploads/laporan/' . $newName, $imageData);
-
-                // Update foto_user dengan foto baru
-                $this->laporanBug->update($laporan['id'], ['foto_user' => 'uploads/laporan/' . $newName]);
-            }
 
             return $this->respond([
                 'status'  => 200,
-                'message' => 'Laporan berhasil diperbarui',
+                'message' => 'Laporan berhasil diperbarui.',
             ]);
         } catch (\Throwable $th) {
             log_message('error', 'Terjadi kesalahan: ' . $th->getMessage());
