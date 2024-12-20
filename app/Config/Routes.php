@@ -30,6 +30,8 @@ $routes->put('status-kerja', 'LaporanBugController::changeStatusKerja');
 
 // Aplikasi category
 $routes->get('getCategoryApk', 'ApkCategoryController::index');
+$routes->post('createApkCategory', 'ApkCategoryController::createApkCategory');
+$routes->delete('deleteApkCategory', 'ApkCategoryController::deleteApkCategory');
 
 // Laporan pekerjaan
 $routes->get('getLaporanPekerjaan', 'LaporanPekerjaanController::index');
