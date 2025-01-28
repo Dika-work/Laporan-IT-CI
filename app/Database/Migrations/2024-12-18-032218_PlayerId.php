@@ -4,24 +4,22 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class ApkCategory extends Migration
+class PlayerId extends Migration
 {
     public function up()
     {
         $this->forge->addField([
-            'id_apk' => [
+            'id' => [
                 'type' => 'INT',
                 'constraint' => 11,
                 'unsigned' => true,
                 'auto_increment' => true,
             ],
-            'title' => [
-                'type' => 'VARCHAR',
-                'constraint' => 255,
+            'user_id' => [
+                'type' => 'LONGTEXT'
             ],
-            'subtitle' => [
-                'type' => 'VARCHAR',
-                'constraint' => 255,
+            'player_id' => [
+                'type' => 'LONGTEXT'
             ],
             'created_at' => [
                 'type' => 'DATETIME',
@@ -31,15 +29,13 @@ class ApkCategory extends Migration
                 'type' => 'DATETIME',
                 'null' => true,
             ],
-
         ]);
-
-        $this->forge->addPrimaryKey('id_apk');
-        $this->forge->createTable('apk_category');
+        $this->forge->addKey('id', true);
+        $this->forge->createTable('notif');
     }
 
     public function down()
     {
-        $this->forge->dropTable('apk_category');
+        $this->forge->dropTable('notif');
     }
 }

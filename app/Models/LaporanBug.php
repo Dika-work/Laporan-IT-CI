@@ -8,6 +8,7 @@ class LaporanBug extends Model
 {
     protected $table = 'laporanbugs';
     protected $primaryKey = 'id';
+    protected $useTimestamps = true;
     protected $allowedFields = [
         'username_hash',
         'divisi',
@@ -15,6 +16,7 @@ class LaporanBug extends Model
         'status_kerja',
         'priority',
         'tgl_diproses',
+        'tgl_acc',
         'lampiran',
         'foto_user',
         'created_at',
