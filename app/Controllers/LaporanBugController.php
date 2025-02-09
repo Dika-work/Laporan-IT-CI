@@ -1,10 +1,9 @@
 <?php
-
 namespace App\Controllers;
 
 use App\Models\LaporanBug;
-use App\Models\UserModel;
 use App\Models\LaporanGambar;
+use App\Models\UserModel;
 use CodeIgniter\RESTful\ResourceController;
 
 class LaporanBugController extends ResourceController
@@ -15,8 +14,8 @@ class LaporanBugController extends ResourceController
 
     public function __construct()
     {
-        $this->laporanBug = new LaporanBug();
-        $this->userModel = new UserModel();
+        $this->laporanBug    = new LaporanBug();
+        $this->userModel     = new UserModel();
         $this->laporanGambar = new LaporanGambar();
     }
 
@@ -25,7 +24,7 @@ class LaporanBugController extends ResourceController
         try {
             $usernameHash = $this->request->getVar('username_hash');
 
-            if (!$usernameHash) {
+            if (! $usernameHash) {
                 return $this->fail('username is required', 400);
             }
 
@@ -54,9 +53,9 @@ class LaporanBugController extends ResourceController
         try {
             $allBug = $this->laporanBug
                 ->select('
-                laporanbugs.*, 
-                users.username AS username, 
-                users.divisi, 
+                laporanbugs.*,
+                users.username AS username,
+                users.divisi,
                 users.foto_user AS user_foto_user
             ')
                 ->join('users', 'users.username_hash = laporanbugs.username_hash')
@@ -79,52 +78,71 @@ class LaporanBugController extends ResourceController
     public function changeStatusKerja()
     {
         try {
-            $hashId = $this->request->getVar('hash_id');
+            $hashId  = $this->request->getVar('hash_id');
             $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
 
-            if (!$laporan) {
+            if (! $laporan) {
                 return $this->failNotFound('Data laporan tidak ditemukan.');
             }
 
-            $json = $this->request->getJSON();
+            // Ambil token dari user yang membuat laporan ini
+            $user = $this->userModel->select('device_token')
+                ->where('username_hash', $laporan['username_hash']) 
+                ->where('device_token IS NOT NULL')
+                ->first();
+
+            if (! $user) {
+                return $this->failNotFound('User tidak ditemukan atau tidak memiliki device token.');
+            }
+
+            $json        = $this->request->getJSON();
             $statusKerja = $json->status_kerja;
-            $tglAcc = $json->tgl_acc ?? null;
+            $tglAcc      = $json->tgl_acc ?? null;
 
             // Validasi status_kerja
-            if (!in_array($statusKerja, [0, 1, 2])) {
-                return $this->failValidationErrors('status_kerja harus diisi dan memiliki nilai 0, 1, atau 2.');
+            if (! in_array($statusKerja, [1, 2])) {
+                return $this->failValidationErrors('status_kerja harus bernilai 1 atau 2.');
             }
 
             // Validasi tgl_acc
-            if (empty($tglAcc)) {
-                return $this->failValidationErrors('tgl_acc tidak boleh kosong.');
+            if (empty($tglAcc) || ! \DateTime::createFromFormat('Y-m-d H:i:s', $tglAcc)) {
+                return $this->failValidationErrors('Format tgl_acc tidak valid. Gunakan Y-m-d H:i:s.');
             }
 
-            if (!\DateTime::createFromFormat('Y-m-d H:i:s', $tglAcc)) {
-                return $this->failValidationErrors('Format tgl_acc tidak valid. Gunakan format Y-m-d H:i:s.');
-            }
-
-            // Data untuk update
-            $updateData = [
-                'status_kerja' => $statusKerja,
-                'tgl_acc' => $tglAcc
+            // Kirim notifikasi ke user yang bersangkutan
+            $notifikasi        = new NotifikasiController();
+            $statusKerjaLevels = [
+                '1' => 'Sudah Diproses',
+                '2' => 'Telah Selesai',
             ];
 
-            // Update data
+            $statusKerjaText = $statusKerjaLevels[$statusKerja];
+
+            $notifikasi->sendNotification(
+                $user['device_token'],
+                "Laporan Anda Diperbarui",
+                "Laporan Anda kini $statusKerjaText",
+                ['action' => 'laporan_status']
+            );
+
+            log_message('info', "Notifikasi laporan status dikirim ke user {$laporan['id']}.");
+
+            // Update data laporan
+            $updateData = [
+                'status_kerja' => $statusKerja,
+                'tgl_acc'      => $tglAcc,
+            ];
             $this->laporanBug->update($laporan['id'], $updateData);
-            log_message('debug', 'Update Data: ' . json_encode($updateData));
 
             return $this->respond([
                 'status'  => 200,
-                'message' => 'Status kerja berhasil diperbarui.'
+                'message' => 'Status kerja berhasil diperbarui.',
             ]);
         } catch (\Throwable $e) {
             log_message('error', 'Error: ' . $e->getMessage());
             return $this->failServerError('Terjadi kesalahan pada server: ' . $e->getMessage());
         }
     }
-
-
 
     public function createLaporan()
     {
@@ -138,7 +156,7 @@ class LaporanBugController extends ResourceController
             'lampiran'     => 'required',
         ];
 
-        if (!$this->validate($validationRules)) {
+        if (! $this->validate($validationRules)) {
             log_message('error', 'Validation Errors: ' . json_encode($this->validator->getErrors()));
             return $this->fail($this->validator->getErrors(), 400);
         }
@@ -151,7 +169,7 @@ class LaporanBugController extends ResourceController
         $status_kerja = $this->request->getPost('status_kerja');
 
         $user = $this->userModel->select('username_hash, divisi')->where('username', $username)->first();
-        if (!$user) {
+        if (! $user) {
             return $this->fail('User not found', 404);
         }
 
@@ -169,10 +187,16 @@ class LaporanBugController extends ResourceController
             $laporanId = $this->laporanBug->insert($dataLaporan, true);
             log_message('info', "Laporan ID {$laporanId} berhasil dibuat.");
 
+            // Ambil token admin
+            $adminTokens = $this->userModel->select('device_token')
+                ->where('type_user', 'admin')
+                ->where('device_token IS NOT NULL')
+                ->findAll();
+
             $gambarFiles = $this->request->getFileMultiple('foto_user');
             if ($gambarFiles && is_array($gambarFiles)) {
                 foreach ($gambarFiles as $file) {
-                    if ($file->isValid() && !$file->hasMoved()) {
+                    if ($file->isValid() && ! $file->hasMoved()) {
                         $newName = $file->getRandomName();
                         $file->move(FCPATH . 'uploads/laporan', $newName);
 
@@ -190,6 +214,32 @@ class LaporanBugController extends ResourceController
             } else {
                 $this->laporanBug->update($laporanId, ['foto_user' => null]);
                 log_message('info', "Kolom foto_user tidak diperbarui karena tidak ada gambar yang diupload.");
+            }
+
+            if (! empty($adminTokens)) {
+                $notifikasi = new NotifikasiController();
+
+                // Mapping priority ke teks (diletakkan di luar loop untuk efisiensi)
+                $priorityLevels = [
+                    '1' => 'Ringan',
+                    '2' => 'Sedang',
+                    '3' => 'Berat',
+                    '4' => 'Urgent',
+                ];
+
+                // Pastikan priority valid
+                $priorityText = $priorityLevels[$priority] ?? 'Lainnya';
+
+                foreach ($adminTokens as $admin) {
+                    $notifikasi->sendNotification(
+                        $admin['device_token'],
+                        "Laporan Baru (Priority: $priorityText)", // Ubah dari angka ke teks
+                        "$username telah membuat laporan $apk",
+                        ['action' => 'new_report', 'laporanId' => (string) $laporanId]
+                    );
+                }
+
+                log_message('info', "Notifikasi laporan baru dikirim ke semua admin.");
             }
 
             return $this->respondCreated([
@@ -212,15 +262,15 @@ class LaporanBugController extends ResourceController
 
         // Ambil daftar gambar lama yang ingin dipertahankan
         $existingImages = $this->request->getPost('existing_images') ?? [];
-        if (!is_array($existingImages)) {
+        if (! is_array($existingImages)) {
             $existingImages = [];
         }
 
         // **Normalisasi existing_images** untuk memastikan path relatif
         $existingImages = array_map(function ($image) {
-            // Hilangkan protokol, domain, dan base URL
+                                                           // Hilangkan protokol, domain, dan base URL
             $normalized = parse_url($image, PHP_URL_PATH); // Ambil bagian path
-            return ltrim($normalized, '/'); // Hapus leading slash jika ada
+            return ltrim($normalized, '/');                // Hapus leading slash jika ada
         }, $existingImages);
 
         // Debugging: Log hasil existing_images yang sudah dinormalisasi
@@ -228,12 +278,12 @@ class LaporanBugController extends ResourceController
 
         // Cari laporan berdasarkan hash_id
         $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
-        if (!$laporan) {
+        if (! $laporan) {
             return $this->failNotFound('Laporan tidak ditemukan.');
         }
 
         // Ambil semua gambar lama dari database
-        $oldImages = $this->laporanGambar->where('laporan_id', $laporan['id'])->findAll();
+        $oldImages     = $this->laporanGambar->where('laporan_id', $laporan['id'])->findAll();
         $oldImagePaths = array_column($oldImages, 'path');
 
         // Debugging: Log semua gambar lama
@@ -241,7 +291,7 @@ class LaporanBugController extends ResourceController
 
         // Hapus gambar lama yang tidak ada di existing_images
         foreach ($oldImagePaths as $oldPath) {
-            if (!in_array($oldPath, $existingImages)) {
+            if (! in_array($oldPath, $existingImages)) {
                 // Hapus file dari direktori jika file ada
                 if (file_exists(FCPATH . $oldPath)) {
                     unlink(FCPATH . $oldPath);
@@ -259,7 +309,7 @@ class LaporanBugController extends ResourceController
 
         if ($uploadedFiles) {
             foreach ($uploadedFiles as $file) {
-                if ($file->isValid() && !$file->hasMoved()) {
+                if ($file->isValid() && ! $file->hasMoved()) {
                     // Simpan file baru ke direktori
                     $newFileName = $file->getRandomName();
                     $file->move(FCPATH . 'uploads/laporan/', $newFileName);
@@ -298,14 +348,13 @@ class LaporanBugController extends ResourceController
         }
     }
 
-
     public function deleteLaporan()
     {
         try {
-            $hashId = $this->request->getVar('hash_id');
+            $hashId  = $this->request->getVar('hash_id');
             $laporan = $this->laporanBug->where('SHA2(id, 256)', $hashId)->first();
 
-            if (!$laporan) {
+            if (! $laporan) {
                 return $this->failNotFound('Laporan tidak ditemukan.');
             }
 

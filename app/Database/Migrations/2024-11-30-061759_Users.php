@@ -42,6 +42,9 @@ class Users extends Migration
                 'constraint' => 255,
                 'null'       => true,
             ],
+            'device_token' => [
+                'type'       => 'TEXT',
+            ],
             'created_at' => [
                 'type'       => 'DATETIME',
                 'null'       => true,

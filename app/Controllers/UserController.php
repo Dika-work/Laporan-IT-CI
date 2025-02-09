@@ -82,6 +82,42 @@ class UserController extends ResourceController
                 ], 401);
             }
 
+            // **Cek dan update device_token jika NULL atau berbeda**
+            if (! empty($json->device_token)) {
+                log_message('debug', '🛠️ Tes Log Debug');
+                // Ambil token lama sebelum diupdate
+                $oldDeviceToken = $user['device_token'];
+
+                if (empty($oldDeviceToken) || $oldDeviceToken !== $json->device_token) {
+                    log_message('debug', "Device token berubah untuk user {$user['username']}: OLD: {$oldDeviceToken} → NEW: {$json->device_token}");
+
+                    if ($this->userModel->update($user['id'], ['device_token' => $json->device_token])) {
+                        log_message('debug', "Device token diperbarui untuk user {$user['username']}");
+
+                        // **Kirim Notifikasi Logout ke Device Lama**
+                        if (! empty($oldDeviceToken)) {
+                            log_message('debug', "Payload Notifikasi: " . json_encode([
+                                'token' => $oldDeviceToken,
+                                'title' => 'Logged Out',
+                                'body'  => 'Akun Anda login di perangkat lain',
+                                'data'  => ['action' => 'logout'],
+                            ]));
+
+                            $notifikasi = new NotifikasiController();
+                            $response   = $notifikasi->sendNotification(
+                                $oldDeviceToken, // Kirim ke token lama
+                                'Logged Out',
+                                'Akun Anda login di perangkat lain',
+                                ['action' => 'logout']// Data untuk Flutter
+                            );
+                            log_message('debug', "Response dari Firebase: " . json_encode($response));
+                        }
+                    } else {
+                        log_message('error', "Gagal memperbarui device_token untuk user {$user['username']}");
+                    }
+                }
+            }
+
             return $this->respond([
                 'status'  => 200,
                 'message' => 'Login berhasil.',
@@ -89,6 +125,7 @@ class UserController extends ResourceController
                     'username_hash' => $user['username_hash'],
                     'type_user'     => $user['type_user'],
                     'foto_user'     => $user['foto_user'],
+                    'device_token'  => $json->device_token ?? $user['device_token'], // Pastikan device_token dikembalikan
                 ],
             ], 200);
         } catch (\Exception $e) {
