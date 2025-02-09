@@ -124,3 +124,6 @@ nb-configuration.xml
 
 /results/
 /phpunit*.xml
+
+#ignore json service
+writable/firebase-service-account.json

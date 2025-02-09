@@ -17,10 +17,8 @@ class UserController extends ResourceController
     {
         $usernameHash = $this->request->getVar('username_hash');
 
-        if (!  $usernameHash) {
+        if (! $usernameHash) {
             return $this->respond([
-                'status'  => 400,
-                'message' => 'username_hash is required',
                 'status'  => 400,
                 'message' => 'username_hash is required',
             ], 400);
@@ -30,15 +28,13 @@ class UserController extends ResourceController
 
         // Query yang diperbaiki
         $user = $this->userModel
-            ->select('username, divisi')                       // Pilih kolom username dan divisi
+            ->select('username, divisi')            // Pilih kolom username dan divisi
             ->where('username_hash', $usernameHash) // Filter berdasarkan username_hash
             ->first();
 
-        if (!  $user) {
+        if (! $user) {
             log_message('error', 'User not found for hash: ' . $usernameHash);
             return $this->respond([
-                'status'  => 404,
-                'message' => 'User not found',
                 'status'  => 404,
                 'message' => 'User not found',
             ], 404);
@@ -48,14 +44,13 @@ class UserController extends ResourceController
 
         return $this->respond([
             'status'  => 200,
-            'status'  => 200,
             'message' => 'Username found',
             'data'    => [
-            'data'    => [
-                'username' => $user['username'],
-                'divisi'   => $user['divisi'],
-            ],
-                'divisi'   => $user['divisi'],
+                'data'   => [
+                    'username' => $user['username'],
+                    'divisi'   => $user['divisi'],
+                ],
+                'divisi' => $user['divisi'],
             ],
         ], 200);
     }
@@ -63,7 +58,6 @@ class UserController extends ResourceController
     public function login()
     {
         try {
-            try {
             $json = $this->request->getJSON();
 
             if (! isset($json->username) || ! isset($json->password)) {
@@ -74,24 +68,9 @@ class UserController extends ResourceController
             }
 
             log_message('debug', 'Login request received: ' . json_encode($json));
-            if (! isset($json->username) || ! isset($json->password)) {
-                return $this->respond([
-                    'status'  => 400,
-                    'message' => 'Username dan password harus diisi.',
-                ], 400);
-            }
-
-            log_message('debug', 'Login request received: ' . json_encode($json));
 
             $user = $this->userModel->where('username', $json->username)->first();
-            $user = $this->userModel->where('username', $json->username)->first();
 
-            if (! $user) {
-                return $this->respond([
-                    'status'  => 404,
-                    'message' => 'Username tidak ditemukan.',
-                ], 404);
-            }
             if (! $user) {
                 return $this->respond([
                     'status'  => 404,
@@ -108,7 +87,6 @@ class UserController extends ResourceController
 
             // **Cek dan update device_token jika NULL atau berbeda**
             if (! empty($json->device_token)) {
-                log_message('debug', '🛠️ Tes Log Debug');
                 // Ambil token lama sebelum diupdate
                 $oldDeviceToken = $user['device_token'];
 
@@ -120,12 +98,7 @@ class UserController extends ResourceController
 
                         // **Kirim Notifikasi Logout ke Device Lama**
                         if (! empty($oldDeviceToken)) {
-                            log_message('debug', "Payload Notifikasi: " . json_encode([
-                                'token' => $oldDeviceToken,
-                                'title' => 'Logged Out',
-                                'body'  => 'Akun Anda login di perangkat lain',
-                                'data'  => ['action' => 'logout'],
-                            ]));
+                            log_message('debug', "Mengirim notifikasi logout ke token lama: {$oldDeviceToken}");
 
                             $notifikasi = new NotifikasiController();
                             $response   = $notifikasi->sendNotification(
@@ -160,7 +133,7 @@ class UserController extends ResourceController
             ], 500);
         }
     }
-    }
+
     // Read: Menampilkan semua user (username dan type_user saja)
     public function index()
     {
@@ -168,8 +141,6 @@ class UserController extends ResourceController
 
         if (empty($users)) {
             return $this->respond([
-                'status'  => 404,
-                'message' => 'Tidak ada data user',
                 'status'  => 404,
                 'message' => 'Tidak ada data user',
             ], 404);
