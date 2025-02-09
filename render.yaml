@@ -1,0 +1,10 @@
+services:
+  - name: codeigniter-app
+    type: web
+    runtime: docker
+    repo: https://github.com/USERNAME/REPO_CODEIGNITER.git
+    branch: main
+    plan: free
+    envVars:
+      - key: CI_ENVIRONMENT
+        value: production
