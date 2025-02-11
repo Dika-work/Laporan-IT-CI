@@ -46,10 +46,7 @@ class UserController extends ResourceController
             'status'  => 200,
             'message' => 'Username found',
             'data'    => [
-                'data'   => [
-                    'username' => $user['username'],
-                    'divisi'   => $user['divisi'],
-                ],
+                'username' => $user['username'],
                 'divisi' => $user['divisi'],
             ],
         ], 200);
