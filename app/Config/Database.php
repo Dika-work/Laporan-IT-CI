@@ -25,9 +25,9 @@ class Database extends Config
      */
     public array $default = [
         'DSN'      => '',
-        'hostname' => 'junction.proxy.rlwy.net', // Gunakan Proxy dari Railway
+        'hostname' => 'mysql.railway.internal', // Gunakan Proxy dari Railway
         'username' => 'root',
-        'password' => 'gNksHtfHGqzJujJkIMNVUSTaJTkiQXVV',
+        'password' => 'KntEKWyIIfMVKPlRSJzlEZyUyuhfuwBS',
         'database' => 'railway',
         'DBDriver' => 'MySQLi',
         'DBPrefix' => '',
@@ -40,7 +40,7 @@ class Database extends Config
         'compress' => false,
         'strictOn' => false,
         'failover' => [],
-        'port'     => 28071, // Gunakan port dari Public Proxy Railway
+        'port'     => 3306, // Gunakan port dari Public Proxy Railway
     ];
 
     //    /**
