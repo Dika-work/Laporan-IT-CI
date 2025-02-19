@@ -7,6 +7,11 @@ Options -Indexes
 
 # Turning on the rewrite engine is necessary for the following rules and features.
 # FollowSymLinks must be enabled for this to work.
+
+# Izinkan akses langsung ke folder uploads
+RewriteCond %{REQUEST_URI} ^/uploads/ [NC]
+RewriteRule .* - [L]
+
 <IfModule mod_rewrite.c>
 	Options +FollowSymlinks
 	RewriteEngine On
@@ -36,6 +41,10 @@ Options -Indexes
 	# Ensure Authorization header is passed along
 	RewriteCond %{HTTP:Authorization} .
 	RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+	# Add this rule for handling API routes
+	RewriteCond %{REQUEST_URI} !^/index\.php
+	RewriteRule ^(.*)$ index.php/$1 [L]
 </IfModule>
 
 <IfModule !mod_rewrite.c>

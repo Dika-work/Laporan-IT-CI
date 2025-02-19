@@ -12,7 +12,10 @@
     "require": {
         "php": "^8.1",
         "codeigniter4/framework": "^4.0",
-        "google/apiclient": "^2.18"
+        "google/apiclient": "^2.18",
+        "google/apiclient-services": "*",
+        "kint-php/kint": "^6.0",
+        "vlucas/phpdotenv": "^5.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9",

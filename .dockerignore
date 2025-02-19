@@ -1,0 +1,20 @@
+# Direktori dan file yang tidak perlu
+builds
+tests
+writable/cache/*
+writable/debugbar/*
+writable/logs/*
+writable/session/*
+writable/uploads/*
+
+# File Git dan Editor
+.git
+.gitignore
+.vscode/
+.idea/
+
+# File konfigurasi dan lainnya
+phpunit.xml.dist
+README.md
+README.Docker.md
+Profile
